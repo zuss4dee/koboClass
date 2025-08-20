@@ -1,5 +1,36 @@
 import { supabase } from '../../lib/supabase';
 
+export const getPendingClasses = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('classes')
+      .select(`
+        *,
+        categories (
+          name,
+          slug
+        ),
+        users!classes_host_id_fkey (
+          full_name,
+          email,
+          avatar_url
+        )
+      `)
+      .eq('status', 'pending_approval')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching pending classes:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error in getPendingClasses:', error);
+    return { success: false, error: 'Failed to fetch pending classes' };
+  }
+};
+
 export interface ClassApprovalData {
   status: 'approved' | 'rejected';
   adminNotes?: string;
