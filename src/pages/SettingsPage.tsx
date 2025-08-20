@@ -21,6 +21,7 @@ import {
 import { cn } from '../lib/utils';
 import { validateEmail, validatePhone, validatePassword, validateFullName } from '../lib/validation';
 import { useAuth } from '../contexts/AuthContext';
+import { submitHostApplication, getHostApplicationStatus } from '../api/hostApplications';
 
 interface ProfileData {
   fullName: string;
@@ -125,9 +126,21 @@ const SettingsPage = () => {
   const checkHostApplicationStatus = async () => {
     if (!userProfile) return;
     
-    // TODO: Check host application status when Supabase is configured
-    console.log('Would check host application status for user:', userProfile.id);
-    setHasAppliedForHost(false);
+    try {
+      const result = await getHostApplicationStatus(userProfile.id);
+      
+      if (result.success && result.data) {
+        setHasAppliedForHost(true);
+        setHostApplicationStatus(result.data.status);
+      } else {
+        setHasAppliedForHost(false);
+        setHostApplicationStatus(null);
+      }
+    } catch (error) {
+      console.error('Error checking host application status:', error);
+      setHasAppliedForHost(false);
+      setHostApplicationStatus(null);
+    }
   };
 
   const [passwordData, setPasswordData] = useState<PasswordData>({
@@ -296,17 +309,20 @@ const SettingsPage = () => {
               return;
             }
 
-            // TODO: Implement host application submission when Supabase is configured
-            console.log('Host application would be submitted:', {
-              user_id: userProfile.id,
+            const result = await submitHostApplication(userProfile.id, {
               bio: hostApplicationData.bio,
-              social_links: hostApplicationData.socialLinks,
-              status: 'pending'
+              social_links: hostApplicationData.socialLinks
             });
             
-            setSuccessMessage('Host application submitted successfully! We\'ll review it and get back to you soon.');
-            setHasAppliedForHost(true);
-            setHostApplicationStatus('pending');
+            if (result.success) {
+              setSuccessMessage('Host application submitted successfully! We\'ll review it and get back to you soon.');
+              setHasAppliedForHost(true);
+              setHostApplicationStatus('pending');
+            } else {
+              setErrors({ general: result.error || 'Failed to submit application. Please try again.' });
+              setIsLoading(false);
+              return;
+            }
           } catch (error) {
             console.error('Host application error:', error);
             setErrors({ general: 'An unexpected error occurred. Please try again.' });
