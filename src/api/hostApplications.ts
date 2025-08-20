@@ -88,7 +88,10 @@ export const getHostApplicationStatus = async (userId: string) => {
       .eq('user_id', userId)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+    if (error) {
+      if (error.code === 'PGRST116') { // PGRST116 = no rows found
+        return { success: true, data: null };
+      }
       console.error('Error fetching host application:', error);
       return { success: false, error: 'Failed to fetch application status' };
     }
