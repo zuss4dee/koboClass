@@ -12,34 +12,16 @@ export interface ClassApprovalResponse {
   error?: string;
 }
 
-// Mock Whereby API integration
-const generateWherebyLink = async (classTitle: string, classDateTime: string): Promise<{ url: string; roomId: string } | null> => {
+// Mock Whereby API integration - replace with actual Whereby API calls
+const generateWherebyLink = async (classTitle: string): Promise<{ url: string; roomId: string } | null> => {
   try {
-    // In production, replace this with actual Whereby API call
-    // Example Whereby API call:
-    // const response = await fetch('https://api.whereby.dev/v1/meetings', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${process.env.WHEREBY_API_KEY}`,
-    //     'Content-Type': 'application/json'
-    //   },
-    //   body: JSON.stringify({
-    //     endDate: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(), // 4 hours from now
-    //     fields: ['hostRoomUrl'],
-    //     isLocked: false,
-    //     roomNamePrefix: 'koboclass',
-    //     roomMode: 'group'
-    //   })
-    // });
-    
-    // Mock implementation
+    // In production, this would be an actual Whereby API call
+    // For now, we'll generate a mock link
     const roomId = `koboclass-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const url = `https://koboclass.whereby.com/${roomId}`;
     
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    console.log(`Generated Whereby link for "${classTitle}":`, url);
     
     return { url, roomId };
   } catch (error) {
@@ -48,66 +30,24 @@ const generateWherebyLink = async (classTitle: string, classDateTime: string): P
   }
 };
 
-// Mock email service
-const sendClassApprovalEmail = async (
-  hostEmail: string, 
-  hostName: string, 
-  classData: any, 
-  wherebyUrl?: string
-) => {
+// Mock email service - replace with actual Resend integration
+const sendHostApprovalEmail = async (hostEmail: string, hostName: string, classData: any) => {
   try {
-    // In production, replace with actual Resend API call
-    console.log('Sending class approval email to:', hostEmail);
+    // In production, this would use Resend API
+    console.log('Sending approval email to:', hostEmail);
+    console.log('Class approved:', classData.title);
     
+    // Mock email content
     const emailContent = {
       to: hostEmail,
-      subject: `🎉 Your class "${classData.title}" is now live!`,
+      subject: `🎉 Your class "${classData.title}" has been approved!`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(90deg, #D9572B, #F4B400); padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">🎉 Class Approved!</h1>
-          </div>
-          
-          <div style="background: #FAF4EC; padding: 24px; border-radius: 0 0 12px 12px;">
-            <h2 style="color: #1F1F1F; margin-bottom: 16px;">Hi ${hostName},</h2>
-            
-            <p style="color: #1F1F1F; margin-bottom: 16px;">
-              Great news! Your class "<strong>${classData.title}</strong>" has been approved and is now live on KoboClass.
-            </p>
-            
-            <div style="background: #F6E6CE; padding: 16px; border-radius: 8px; margin: 16px 0;">
-              <h3 style="color: #1F1F1F; margin-bottom: 8px;">Class Details:</h3>
-              <p style="color: #8C8C8C; margin: 4px 0;"><strong>Date:</strong> ${new Date(classData.date_time).toLocaleDateString()}</p>
-              <p style="color: #8C8C8C; margin: 4px 0;"><strong>Time:</strong> ${new Date(classData.date_time).toLocaleTimeString()}</p>
-              <p style="color: #8C8C8C; margin: 4px 0;"><strong>Duration:</strong> ${classData.duration_minutes} minutes</p>
-              <p style="color: #8C8C8C; margin: 4px 0;"><strong>Price:</strong> ₦${(classData.price / 100).toLocaleString()}</p>
-            </div>
-            
-            ${wherebyUrl ? `
-              <div style="background: #2C6E49; color: white; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                <h3 style="margin-bottom: 8px;">🎥 Your Class Link:</h3>
-                <p style="margin: 4px 0;">Your Whereby video link has been generated and is available in your host dashboard.</p>
-                <p style="margin: 4px 0; font-size: 12px;">Share this link with students 5 minutes before class starts.</p>
-              </div>
-            ` : ''}
-            
-            <p style="color: #1F1F1F; margin: 16px 0;">
-              Students can now discover and book your class. You'll receive notifications when students enroll.
-            </p>
-            
-            <div style="text-align: center; margin: 24px 0;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://koboclass.com'}/host-dashboard" 
-                 style="background: #D9572B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                View in Host Dashboard
-              </a>
-            </div>
-            
-            <p style="color: #1F1F1F;">
-              Happy teaching!<br>
-              <strong>The KoboClass Team</strong>
-            </p>
-          </div>
-        </div>
+        <h1>Congratulations ${hostName}!</h1>
+        <p>Your class "${classData.title}" has been approved and is now live on KoboClass.</p>
+        <p>Students can now discover and book your class.</p>
+        <p>Your Whereby link will be available in your host dashboard.</p>
+        <p>Happy teaching!</p>
+        <p>The KoboClass Team</p>
       `
     };
     
@@ -116,111 +56,152 @@ const sendClassApprovalEmail = async (
     
     return { success: true };
   } catch (error) {
-    console.error('Error sending class approval email:', error);
+    console.error('Error sending approval email:', error);
     return { success: false, error: 'Failed to send approval email' };
   }
 };
 
-const sendClassRejectionEmail = async (
-  hostEmail: string, 
-  hostName: string, 
-  classData: any, 
-  adminNotes?: string
-) => {
+export const approveOrRejectClass = async (
+  classId: string,
+  approvalData: ClassApprovalData
+): Promise<ClassApprovalResponse> => {
   try {
-    console.log('Sending class rejection email to:', hostEmail);
+    // Validate input
+    if (!classId) {
+      return { success: false, error: 'Class ID is required' };
+    }
     
-    const emailContent = {
-      to: hostEmail,
-      subject: `Class Update: "${classData.title}" requires revision`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #C1440E; padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">Class Needs Revision</h1>
-          </div>
-          
-          <div style="background: #FAF4EC; padding: 24px; border-radius: 0 0 12px 12px;">
-            <h2 style="color: #1F1F1F; margin-bottom: 16px;">Hi ${hostName},</h2>
-            
-            <p style="color: #1F1F1F; margin-bottom: 16px;">
-              Thank you for submitting your class "<strong>${classData.title}</strong>". 
-              After review, we need you to make some adjustments before we can approve it.
-            </p>
-            
-            ${adminNotes ? `
-              <div style="background: #F6E6CE; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                <h3 style="color: #1F1F1F; margin-bottom: 8px;">Feedback from our team:</h3>
-                <p style="color: #8C8C8C;">${adminNotes}</p>
-              </div>
-            ` : ''}
-            
-            <p style="color: #1F1F1F; margin: 16px 0;">
-              Please review the feedback and resubmit your class. We're here to help you create an amazing learning experience!
-            </p>
-            
-            <div style="text-align: center; margin: 24px 0;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://koboclass.com'}/host-dashboard" 
-                 style="background: #D9572B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                Edit Your Class
-              </a>
-            </div>
-            
-            <p style="color: #1F1F1F;">
-              Keep creating!<br>
-              <strong>The KoboClass Team</strong>
-            </p>
-          </div>
-        </div>
-      `
-    };
-    
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending class rejection email:', error);
-    return { success: false, error: 'Failed to send rejection email' };
-  }
-};
+    if (!['approved', 'rejected'].includes(approvalData.status)) {
+      return { success: false, error: 'Invalid status. Must be approved or rejected' };
+    }
 
-export const approveClass = async (classId: string, adminId: string, adminNotes?: string) => {
-  return approveOrRejectClass(classId, {
-    status: 'approved',
-    adminNotes,
-    adminId
-  });
-};
-
-export const rejectClass = async (classId: string, adminId: string, adminNotes?: string) => {
-  const result = await approveOrRejectClass(classId, {
-    status: 'rejected',
-    adminNotes,
-    adminId
-  });
-  
-  // Send rejection email if successful
-  if (result.success && result.data) {
-    const { data: classData } = await supabase
+    // Fetch the class details first
+    const { data: classData, error: fetchError } = await supabase
       .from('classes')
       .select(`
         *,
         users!classes_host_id_fkey (
+          id,
           email,
           full_name
         )
       `)
       .eq('id', classId)
       .single();
-    
-    if (classData && classData.users) {
-      await sendClassRejectionEmail(
+
+    if (fetchError || !classData) {
+      console.error('Error fetching class for approval:', fetchError);
+      return { success: false, error: 'Class not found' };
+    }
+
+    // Check if class is in pending status
+    if (classData.status !== 'pending_approval') {
+      return { success: false, error: 'Class is not pending approval' };
+    }
+
+    let wherebyUrl = null;
+    let roomId = null;
+
+    // If approving, generate Whereby link
+    if (approvalData.status === 'approved') {
+      const wherebyResult = await generateWherebyLink(classData.title);
+      
+      if (!wherebyResult) {
+        return { success: false, error: 'Failed to generate video conference link' };
+      }
+      
+      wherebyUrl = wherebyResult.url;
+      roomId = wherebyResult.roomId;
+
+      // Store Whereby link in database
+      const { error: wherebyError } = await supabase
+        .from('whereby_links')
+        .insert([
+          {
+            class_id: classId,
+            whereby_url: wherebyUrl,
+            room_id: roomId,
+            status: 'active',
+            expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+          }
+        ]);
+
+      if (wherebyError) {
+        console.error('Error storing Whereby link:', wherebyError);
+        return { success: false, error: 'Failed to store video conference link' };
+      }
+    }
+
+    // Update class status
+    const { data: updatedClass, error: updateError } = await supabase
+      .from('classes')
+      .update({
+        status: approvalData.status,
+        admin_notes: approvalData.adminNotes,
+        approved_by: approvalData.adminId,
+        approved_at: new Date().toISOString()
+      })
+      .eq('id', classId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating class status:', updateError);
+      return { success: false, error: 'Failed to update class status' };
+    }
+
+    // Send email notification to host if approved
+    if (approvalData.status === 'approved' && classData.users) {
+      await sendHostApprovalEmail(
         classData.users.email,
         classData.users.full_name || 'Host',
-        classData,
-        adminNotes
+        classData
       );
     }
+
+    return { 
+      success: true, 
+      data: { 
+        ...updatedClass, 
+        wherebyUrl: wherebyUrl 
+      } 
+    };
+  } catch (error) {
+    console.error('Unexpected error in class approval:', error);
+    return { success: false, error: 'An unexpected error occurred. Please try again.' };
   }
-  
-  return result;
 };
+
+export const getPendingClasses = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('classes')
+      .select(`
+        *,
+        categories (
+          name,
+          slug
+        ),
+        users!classes_host_id_fkey (
+          id,
+          full_name,
+          email,
+          avatar_url
+        )
+      `)
+      .eq('status', 'pending_approval')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching pending classes:', error);
+      return { success: false, error: 'Failed to fetch pending classes' };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Unexpected error fetching pending classes:', error);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+};
+
+export { getPendingClasses }
