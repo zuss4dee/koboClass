@@ -224,5 +224,3 @@ export const rejectClass = async (classId: string, adminId: string, adminNotes?:
   
   return result;
 };
-
-export { approveClass, rejectClass }
