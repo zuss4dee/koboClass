@@ -18,6 +18,7 @@ import HostDashboardPage from './pages/HostDashboardPage';
 import CreatorsPage from './pages/CreatorsPage';
 import FeaturesPage from './pages/FeaturesPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 
 function App() {
   return (
@@ -82,6 +83,11 @@ function App() {
             } />
             <Route path="/creators" element={<CreatorsPage />} />
             <Route path="/features" element={<FeaturesPage />} />
+            <Route path="/admin" element={
+              <ProtectedRoute>
+                <AdminDashboardPage />
+              </ProtectedRoute>
+            } />
           </Routes>
         </div>
       </Router>

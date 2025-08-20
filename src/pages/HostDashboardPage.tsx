@@ -24,6 +24,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationSystem from '../components/NotificationSystem';
 import StatisticsCard8 from '../components/ui/statistics-card-8';
+import { getHostClasses } from '../api/classes';
 
 interface HostedClass {
   id: string;
@@ -44,10 +45,12 @@ interface HostedClass {
 
 const HostDashboardPage = () => {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, user, userProfile } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [hostedClasses, setHostedClasses] = useState<HostedClass[]>([]);
+  const [isLoadingClasses, setIsLoadingClasses] = useState(true);
 
   const handleLogout = async () => {
     try {
@@ -58,52 +61,74 @@ const HostDashboardPage = () => {
     }
   };
   
-  // Mock hosted classes data
-  const [hostedClasses, setHostedClasses] = useState<HostedClass[]>([
-    {
-      id: '1',
-      title: 'Master Professional Makeup Artistry',
-      description: 'Learn advanced makeup techniques from a certified professional makeup artist with 8+ years experience.',
-      category: 'Creative',
-      date: '2024-12-20',
-      time: '19:00',
-      duration: 90,
-      price: 2500,
-      studentsEnrolled: 45,
-      maxStudents: 50,
-      status: 'upcoming',
-      rating: 4.9,
-      totalEarnings: 90000
-    },
-    {
-      id: '2',
-      title: 'Photography for Social Media',
-      description: 'Take stunning photos with just your phone and grow your Instagram following.',
-      category: 'Creative',
-      date: '2024-12-15',
-      time: '16:00',
-      duration: 120,
-      price: 2000,
-      studentsEnrolled: 32,
-      maxStudents: 40,
-      status: 'completed',
-      rating: 4.8,
-      totalEarnings: 51200
-    },
-    {
-      id: '3',
-      title: 'Advanced Color Theory',
-      description: 'Deep dive into color psychology and application in design.',
-      category: 'Design',
-      date: '2024-12-25',
-      time: '18:00',
-      duration: 90,
-      price: 3000,
-      studentsEnrolled: 0,
-      maxStudents: 30,
-      status: 'draft'
+  // Load host classes
+  React.useEffect(() => {
+    const loadHostClasses = async () => {
+      if (!user) return;
+      
+      setIsLoadingClasses(true);
+      try {
+        const result = await getHostClasses(user.id);
+        
+        if (result.success && result.data) {
+          // Transform the data to match our interface
+          const transformedClasses: HostedClass[] = result.data.map((classItem: any) => ({
+            id: classItem.id,
+            title: classItem.title,
+            description: classItem.description,
+            category: classItem.categories?.name || 'Uncategorized',
+            date: classItem.date_time.split('T')[0],
+            time: new Date(classItem.date_time).toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: false 
+            }),
+            duration: classItem.duration_minutes,
+            price: classItem.price / 100, // Convert from kobo to naira
+            studentsEnrolled: 0, // TODO: Get actual enrollment count
+            maxStudents: classItem.max_students || 50,
+            status: getClassStatus(classItem),
+            rating: 4.8, // TODO: Calculate actual rating
+            totalEarnings: 0, // TODO: Calculate actual earnings
+            coverImage: classItem.cover_image_url
+          }));
+          
+          setHostedClasses(transformedClasses);
+        }
+      } catch (error) {
+        console.error('Error loading host classes:', error);
+      } finally {
+        setIsLoadingClasses(false);
+      }
+    };
+
+    loadHostClasses();
+  }, [user]);
+
+  const getClassStatus = (classItem: any): HostedClass['status'] => {
+    const now = new Date();
+    const classDateTime = new Date(classItem.date_time);
+    
+    if (classItem.status === 'draft') return 'draft';
+    if (classItem.status === 'pending_approval') return 'draft'; // Show as draft until approved
+    if (classItem.status === 'rejected') return 'draft'; // Show as draft if rejected
+    
+    // For approved classes, determine if upcoming, live, or completed
+    if (classItem.status === 'approved') {
+      const timeDiff = classDateTime.getTime() - now.getTime();
+      const minutesDiff = timeDiff / (1000 * 60);
+      
+      if (minutesDiff > classItem.duration_minutes) {
+        return 'upcoming';
+      } else if (minutesDiff > 0 && minutesDiff <= classItem.duration_minutes) {
+        return 'live';
+      } else {
+        return 'completed';
+      }
     }
-  ]);
+    
+    return 'draft';
+  };
 
   // Mock stats
   const stats = {
@@ -289,7 +314,12 @@ const HostDashboardPage = () => {
         </div>
 
         {/* Classes Grid */}
-        {filteredClasses.length === 0 ? (
+        {isLoadingClasses ? (
+          <div className="text-center py-12">
+            <div className="w-8 h-8 border-2 border-deep-orange border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-warm-gray">Loading your classes...</p>
+          </div>
+        ) : filteredClasses.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-light-sand rounded-full flex items-center justify-center mx-auto mb-4">
               <Calendar className="w-8 h-8 text-warm-gray" />
@@ -325,9 +355,10 @@ const HostDashboardPage = () => {
                   <div className="absolute top-3 right-3 flex gap-1.5">
                     <span className={cn(
                       "px-2 py-0.5 rounded-full text-xs font-medium",
-                      getStatusColor(classItem.status)
+                      getStatusColor(classItem.status),
+                      classItem.status === 'draft' && classItem.id ? 'bg-golden-yellow text-charcoal-black' : ''
                     )}>
-                      {getStatusText(classItem.status)}
+                      {classItem.status === 'draft' && classItem.id ? 'Pending Review' : getStatusText(classItem.status)}
                     </span>
                     
                     <div className="relative">
@@ -383,10 +414,18 @@ const HostDashboardPage = () => {
 
                   {/* Action Buttons */}
                   <div className="flex gap-1.5">
-                    {classItem.status === 'upcoming' && (
+                    {classItem.status === 'live' && (
                       <button
                         onClick={() => handleClassAction(classItem.id, 'start')}
                         className="flex-1 bg-forest-green text-creamy-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-forest-green/90 transition-colors"
+                      >
+                        Join Live Class
+                      </button>
+                    )}
+                    {classItem.status === 'upcoming' && (
+                      <button
+                        onClick={() => handleClassAction(classItem.id, 'start')}
+                        className="flex-1 bg-deep-orange text-creamy-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-brick-red transition-colors"
                       >
                         Start Class
                       </button>
@@ -396,7 +435,7 @@ const HostDashboardPage = () => {
                         onClick={() => handleClassAction(classItem.id, 'edit')}
                         className="flex-1 bg-deep-orange text-creamy-white py-2 px-3 rounded-lg text-xs font-medium hover:bg-brick-red transition-colors"
                       >
-                        Continue Setup
+                        {classItem.id ? 'Under Review' : 'Continue Setup'}
                       </button>
                     )}
                     <button

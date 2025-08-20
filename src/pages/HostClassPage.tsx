@@ -19,6 +19,8 @@ import {
 import { cn } from '../lib/utils';
 import { CATEGORIES, PRICE_LIMITS, DURATION_LIMITS, COMMISSION_RATES } from '../lib/constants';
 import { validatePrice, validateDuration, convertToKobo, convertFromKobo } from '../lib/validation';
+import { createClass } from '../api/classes';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ClassData {
   title: string;
@@ -48,9 +50,11 @@ interface FormErrors {
 
 const HostClassPage = () => {
   const navigate = useNavigate();
+  const { user, userProfile } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [submitSuccess, setSubmitSuccess] = useState(false);
   
   const [classData, setClassData] = useState<ClassData>({
     title: '',
@@ -122,11 +126,45 @@ const HostClassPage = () => {
 
   const handlePublish = async () => {
     setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsLoading(false);
-    // Navigate to success or dashboard
-    navigate('/host-dashboard');
+    setErrors({});
+
+    try {
+      if (!user || !userProfile) {
+        setErrors({ general: 'You must be logged in to create a class' });
+        setIsLoading(false);
+        return;
+      }
+
+      // Prepare class data for submission
+      const submissionData = {
+        title: classData.title,
+        description: classData.description,
+        category: classData.category,
+        price: convertToKobo(classData.price),
+        date: classData.date,
+        time: classData.time,
+        duration: classData.duration,
+        coverImageUrl: classData.coverImage ? 'placeholder-url' : undefined, // TODO: Implement image upload
+        socialLinks: classData.socialLinks
+      };
+
+      const result = await createClass(user.id, submissionData);
+      
+      if (result.success) {
+        setSubmitSuccess(true);
+        // Navigate to host dashboard after a short delay
+        setTimeout(() => {
+          navigate('/host-dashboard');
+        }, 2000);
+      } else {
+        setErrors({ general: result.error || 'Failed to create class. Please try again.' });
+      }
+    } catch (error) {
+      console.error('Class creation error:', error);
+      setErrors({ general: 'An unexpected error occurred. Please try again.' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const calculateEarnings = (price: number) => {
@@ -475,10 +513,43 @@ const HostClassPage = () => {
 
   const renderStep4 = () => (
     <div className="space-y-6">
+      {submitSuccess ? (
+        <div className="text-center space-y-6">
+          <div className="w-20 h-20 bg-forest-green rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle className="w-10 h-10 text-creamy-white" />
+          </div>
+          
+          <div>
+            <h2 className="text-2xl font-bold text-charcoal-black mb-2">Class Submitted Successfully!</h2>
+            <p className="text-warm-gray">
+              Your class has been submitted for review. We'll notify you once it's approved and live.
+            </p>
+          </div>
+          
+          <div className="bg-light-sand rounded-xl p-6">
+            <h3 className="font-semibold text-charcoal-black mb-2">What happens next?</h3>
+            <ul className="text-sm text-warm-gray space-y-1 text-left">
+              <li>• Our team will review your class within 24-48 hours</li>
+              <li>• You'll receive an email notification once approved</li>
+              <li>• Your Whereby video link will be automatically generated</li>
+              <li>• Students can then discover and book your class</li>
+            </ul>
+          </div>
+        </div>
+      ) : (
+        <>
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-charcoal-black mb-2">Ready to Publish!</h2>
         <p className="text-warm-gray">Review your class details before publishing</p>
       </div>
+
+          {/* General Error */}
+          {errors.general && (
+            <div className="bg-brick-red/10 border border-brick-red/30 rounded-lg p-3 flex items-center gap-2 mb-6">
+              <AlertCircle className="w-5 h-5 text-brick-red" />
+              <span className="text-brick-red font-medium">{errors.general}</span>
+            </div>
+          )}
 
       {/* Class Preview */}
       <div className="bg-creamy-white border border-light-sand rounded-2xl p-6 shadow-lg">
@@ -529,6 +600,8 @@ const HostClassPage = () => {
           Get Shareable Link
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 
