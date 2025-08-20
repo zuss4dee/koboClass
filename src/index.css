@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 44 47% 95%; /* Creamy White #FAF4EC */
+    --foreground: 0 0% 12%; /* Charcoal Black #1F1F1F */
+    --card: 44 47% 95%; /* Creamy White #FAF4EC */
+    --card-foreground: 0 0% 12%; /* Charcoal Black #1F1F1F */
+    --popover: 44 47% 95%; /* Creamy White #FAF4EC */
+    --popover-foreground: 0 0% 12%; /* Charcoal Black #1F1F1F */
+    --primary: 14 75% 51%; /* Deep Orange #D9572B */
+    --primary-foreground: 44 47% 95%; /* Creamy White #FAF4EC */
+    --secondary: 45 100% 48%; /* Golden Yellow #F4B400 */
+    --secondary-foreground: 0 0% 12%; /* Charcoal Black #1F1F1F */
+    --muted: 36 35% 88%; /* Light Sand #F6E6CE */
+    --muted-foreground: 0 0% 55%; /* Warm Gray #8C8C8C */
+    --accent: 150 42% 29%; /* Forest Green #2C6E49 */
+    --accent-foreground: 44 47% 95%; /* Creamy White #FAF4EC */
+    --destructive: 14 85% 42%; /* Brick Red #C1440E */
+    --destructive-foreground: 44 47% 95%; /* Creamy White #FAF4EC */
+    --border: 36 35% 88%; /* Light Sand #F6E6CE */
+    --input: 36 35% 88%; /* Light Sand #F6E6CE */
+    --ring: 14 75% 51%; /* Deep Orange #D9572B */
+    --radius: 0.5rem;
+    
+    /* Custom African Textile Colors */
+    --deep-orange: 14 75% 51%; /* #D9572B */
+    --forest-green: 150 42% 29%; /* #2C6E49 */
+    --golden-yellow: 45 100% 48%; /* #F4B400 */
+    --brick-red: 14 85% 42%; /* #C1440E */
+    --rich-plum: 315 49% 31%; /* #752A65 */
+    --warm-purple: 315 31% 36%; /* #924E7D */
+    --charcoal-black: 0 0% 12%; /* #1F1F1F */
+    --creamy-white: 44 47% 95%; /* #FAF4EC */
+    --light-sand: 36 35% 88%; /* #F6E6CE */
+    --warm-gray: 0 0% 55%; /* #8C8C8C */
+    
+    /* Rainbow Button Colors */
+    --color-1: 0 100% 63%;
+    --color-2: 270 100% 63%;
+    --color-3: 210 100% 63%;
+    --color-4: 195 100% 63%;
+    --color-5: 90 100% 63%;
+  }
+
+  .dark {
+    --background: 0 0% 12%; /* Charcoal Black #1F1F1F */
+    --foreground: 44 47% 95%; /* Creamy White #FAF4EC */
+    --card: 0 0% 12%; /* Charcoal Black #1F1F1F */
+    --card-foreground: 44 47% 95%; /* Creamy White #FAF4EC */
+    --popover: 0 0% 12%; /* Charcoal Black #1F1F1F */
+    --popover-foreground: 44 47% 95%; /* Creamy White #FAF4EC */
+    --primary: 14 75% 51%; /* Deep Orange #D9572B */
+    --primary-foreground: 44 47% 95%; /* Creamy White #FAF4EC */
+    --secondary: 45 100% 48%; /* Golden Yellow #F4B400 */
+    --secondary-foreground: 0 0% 12%; /* Charcoal Black #1F1F1F */
+    --muted: 315 49% 31%; /* Rich Plum #752A65 */
+    --muted-foreground: 0 0% 55%; /* Warm Gray #8C8C8C */
+    --accent: 150 42% 29%; /* Forest Green #2C6E49 */
+    --accent-foreground: 44 47% 95%; /* Creamy White #FAF4EC */
+    --destructive: 14 85% 42%; /* Brick Red #C1440E */
+    --destructive-foreground: 44 47% 95%; /* Creamy White #FAF4EC */
+    --border: 315 49% 31%; /* Rich Plum #752A65 */
+    --input: 315 49% 31%; /* Rich Plum #752A65 */
+    --ring: 14 75% 51%; /* Deep Orange #D9572B */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  
+  /* African Textile Gradient Utilities */
+  .gradient-orange-yellow {
+    background: linear-gradient(90deg, #D9572B, #F4B400);
+  }
+  
+  .gradient-green-red {
+    background: linear-gradient(135deg, #2C6E49, #C1440E);
+  }
+  
+  .gradient-plum-yellow {
+    background: linear-gradient(to right, #752A65, #F4B400);
+  }
+  
+  /* Text color utilities for gradients */
+  .text-on-gradient {
+    color: #FAF4EC;
+  }
+  
+  /* Additional shadcn compatibility */
+  .shadow-xs {
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+}
