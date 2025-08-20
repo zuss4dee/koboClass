@@ -16,7 +16,11 @@ import {
   Linkedin,
   Sparkles,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  BookOpen,
+  DollarSign,
+  Users,
+  Star
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { validateEmail, validatePhone, validatePassword, validateFullName } from '../lib/validation';
