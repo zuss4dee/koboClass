@@ -18,7 +18,8 @@ import {
   Star
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { mockInitiatePayment } from '../services/paymentService';
+import { createCheckoutSession } from '../api/checkout';
+import { useAuth } from '../contexts/AuthContext';
 
 interface PaymentMethod {
   id: string;

@@ -1,257 +1,437 @@
-import { supabase } from '../../lib/supabase';
+import React, { useState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { 
+  ArrowLeft, 
+  ArrowRight, 
+  CreditCard, 
+  Smartphone, 
+  Building2, 
+  CheckCircle,
+  Calendar,
+  Share2,
+  Download,
+  Clock,
+  MapPin,
+  User,
+  Sparkles,
+  Shield,
+  Star
+} from 'lucide-react';
+import { cn } from '../lib/utils';
+import { createCheckoutSession } from '../api/stripe';
+import { useAuth } from '../contexts/AuthContext';
 
-export const getPendingClasses = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('classes')
-      .select(`
-        *,
-        categories (
-          name,
-          slug
-        ),
-        users!classes_host_id_fkey (
-          full_name,
-          email,
-          avatar_url
-        )
-      `)
-      .eq('status', 'pending_approval')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching pending classes:', error);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data };
-  } catch (error) {
-    console.error('Error in getPendingClasses:', error);
-    return { success: false, error: 'Failed to fetch pending classes' };
-  }
-};
-
-export interface ClassApprovalData {
-  status: 'approved' | 'rejected';
-  adminNotes?: string;
-  adminId: string;
+interface PaymentMethod {
+  id: string;
+  name: string;
+  icon: React.ReactNode;
+  description: string;
+  popular?: boolean;
 }
 
-export interface ClassApprovalResponse {
-  success: boolean;
-  data?: any;
-  error?: string;
-}
+const CheckoutPage = () => {
+  const { classId } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [selectedPayment, setSelectedPayment] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [orderComplete, setOrderComplete] = useState(false);
 
-// Mock Whereby API integration
-const generateWherebyLink = async (classTitle: string, classDateTime: string): Promise<{ url: string; roomId: string } | null> => {
-  try {
-    // In production, replace this with actual Whereby API call
-    // Example Whereby API call:
-    // const response = await fetch('https://api.whereby.dev/v1/meetings', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${process.env.WHEREBY_API_KEY}`,
-    //     'Content-Type': 'application/json'
-    //   },
-    //   body: JSON.stringify({
-    //     endDate: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(), // 4 hours from now
-    //     fields: ['hostRoomUrl'],
-    //     isLocked: false,
-    //     roomNamePrefix: 'koboclass',
-    //     roomMode: 'group'
-    //   })
-    // });
-    
-    // Mock implementation
-    const roomId = `koboclass-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const url = `https://koboclass.whereby.com/${roomId}`;
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    console.log(`Generated Whereby link for "${classTitle}":`, url);
-    
-    return { url, roomId };
-  } catch (error) {
-    console.error('Error generating Whereby link:', error);
-    return null;
-  }
-};
+  // Mock class data - in real app, fetch based on classId
+  const classData = {
+    id: classId,
+    title: "Master Professional Makeup Artistry",
+    description: "Learn advanced makeup techniques from a certified professional makeup artist with 8+ years experience.",
+    hostName: "Chioma Okeke",
+    hostImage: "https://images.pexels.com/photos/3184334/pexels-photo-3184334.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop&crop=face",
+    date: "December 20, 2024",
+    time: "7:00 PM",
+    duration: "90 minutes",
+    price: 2500,
+    category: "Creative",
+    rating: 4.9,
+    studentsCount: 45
+  };
 
-// Mock email service
-const sendClassApprovalEmail = async (
-  hostEmail: string, 
-  hostName: string, 
-  classData: any, 
-  wherebyUrl?: string
-) => {
-  try {
-    // In production, replace with actual Resend API call
-    console.log('Sending class approval email to:', hostEmail);
-    
-    const emailContent = {
-      to: hostEmail,
-      subject: `🎉 Your class "${classData.title}" is now live!`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(90deg, #D9572B, #F4B400); padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">🎉 Class Approved!</h1>
-          </div>
-          
-          <div style="background: #FAF4EC; padding: 24px; border-radius: 0 0 12px 12px;">
-            <h2 style="color: #1F1F1F; margin-bottom: 16px;">Hi ${hostName},</h2>
-            
-            <p style="color: #1F1F1F; margin-bottom: 16px;">
-              Great news! Your class "<strong>${classData.title}</strong>" has been approved and is now live on KoboClass.
-            </p>
-            
-            <div style="background: #F6E6CE; padding: 16px; border-radius: 8px; margin: 16px 0;">
-              <h3 style="color: #1F1F1F; margin-bottom: 8px;">Class Details:</h3>
-              <p style="color: #8C8C8C; margin: 4px 0;"><strong>Date:</strong> ${new Date(classData.date_time).toLocaleDateString()}</p>
-              <p style="color: #8C8C8C; margin: 4px 0;"><strong>Time:</strong> ${new Date(classData.date_time).toLocaleTimeString()}</p>
-              <p style="color: #8C8C8C; margin: 4px 0;"><strong>Duration:</strong> ${classData.duration_minutes} minutes</p>
-              <p style="color: #8C8C8C; margin: 4px 0;"><strong>Price:</strong> ₦${(classData.price / 100).toLocaleString()}</p>
-            </div>
-            
-            ${wherebyUrl ? `
-              <div style="background: #2C6E49; color: white; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                <h3 style="margin-bottom: 8px;">🎥 Your Class Link:</h3>
-                <p style="margin: 4px 0;">Your Whereby video link has been generated and is available in your host dashboard.</p>
-                <p style="margin: 4px 0; font-size: 12px;">Share this link with students 5 minutes before class starts.</p>
-              </div>
-            ` : ''}
-            
-            <p style="color: #1F1F1F; margin: 16px 0;">
-              Students can now discover and book your class. You'll receive notifications when students enroll.
-            </p>
-            
-            <div style="text-align: center; margin: 24px 0;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://koboclass.com'}/host-dashboard" 
-                 style="background: #D9572B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                View in Host Dashboard
-              </a>
-            </div>
-            
-            <p style="color: #1F1F1F;">
-              Happy teaching!<br>
-              <strong>The KoboClass Team</strong>
-            </p>
-          </div>
-        </div>
-      `
-    };
-    
-    // Simulate email sending
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending class approval email:', error);
-    return { success: false, error: 'Failed to send approval email' };
-  }
-};
-
-const sendClassRejectionEmail = async (
-  hostEmail: string, 
-  hostName: string, 
-  classData: any, 
-  adminNotes?: string
-) => {
-  try {
-    console.log('Sending class rejection email to:', hostEmail);
-    
-    const emailContent = {
-      to: hostEmail,
-      subject: `Class Update: "${classData.title}" requires revision`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #C1440E; padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">Class Needs Revision</h1>
-          </div>
-          
-          <div style="background: #FAF4EC; padding: 24px; border-radius: 0 0 12px 12px;">
-            <h2 style="color: #1F1F1F; margin-bottom: 16px;">Hi ${hostName},</h2>
-            
-            <p style="color: #1F1F1F; margin-bottom: 16px;">
-              Thank you for submitting your class "<strong>${classData.title}</strong>". 
-              After review, we need you to make some adjustments before we can approve it.
-            </p>
-            
-            ${adminNotes ? `
-              <div style="background: #F6E6CE; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                <h3 style="color: #1F1F1F; margin-bottom: 8px;">Feedback from our team:</h3>
-                <p style="color: #8C8C8C;">${adminNotes}</p>
-              </div>
-            ` : ''}
-            
-            <p style="color: #1F1F1F; margin: 16px 0;">
-              Please review the feedback and resubmit your class. We're here to help you create an amazing learning experience!
-            </p>
-            
-            <div style="text-align: center; margin: 24px 0;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://koboclass.com'}/host-dashboard" 
-                 style="background: #D9572B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                Edit Your Class
-              </a>
-            </div>
-            
-            <p style="color: #1F1F1F;">
-              Keep creating!<br>
-              <strong>The KoboClass Team</strong>
-            </p>
-          </div>
-        </div>
-      `
-    };
-    
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending class rejection email:', error);
-    return { success: false, error: 'Failed to send rejection email' };
-  }
-};
-
-export const approveClass = async (classId: string, adminId: string, adminNotes?: string) => {
-  return approveOrRejectClass(classId, {
-    status: 'approved',
-    adminNotes,
-    adminId
-  });
-};
-
-export const rejectClass = async (classId: string, adminId: string, adminNotes?: string) => {
-  const result = await approveOrRejectClass(classId, {
-    status: 'rejected',
-    adminNotes,
-    adminId
-  });
-  
-  // Send rejection email if successful
-  if (result.success && result.data) {
-    const { data: classData } = await supabase
-      .from('classes')
-      .select(`
-        *,
-        users!classes_host_id_fkey (
-          email,
-          full_name
-        )
-      `)
-      .eq('id', classId)
-      .single();
-    
-    if (classData && classData.users) {
-      await sendClassRejectionEmail(
-        classData.users.email,
-        classData.users.full_name || 'Host',
-        classData,
-        adminNotes
-      );
+  const paymentMethods: PaymentMethod[] = [
+    {
+      id: 'card',
+      name: 'Debit/Credit Card',
+      icon: <CreditCard className="w-6 h-6" />,
+      description: 'Pay with your Visa, Mastercard, or Verve card',
+      popular: true
+    },
+    {
+      id: 'transfer',
+      name: 'Bank Transfer',
+      icon: <Building2 className="w-6 h-6" />,
+      description: 'Transfer directly from your bank account'
+    },
+    {
+      id: 'ussd',
+      name: 'USSD',
+      icon: <Smartphone className="w-6 h-6" />,
+      description: 'Pay using your mobile phone USSD code'
     }
-  }
-  
-  return result;
+  ];
+
+  const handlePaymentSelect = (methodId: string) => {
+    setSelectedPayment(methodId);
+  };
+
+  const handleProceedToPayment = () => {
+    if (!selectedPayment) return;
+    setCurrentStep(2);
+    setIsProcessing(true);
+    
+    // Process actual payment
+    processPayment();
+  };
+
+  const processPayment = async () => {
+    try {
+      if (!user) {
+        setErrors({ general: 'You must be logged in to purchase a ticket' });
+        setIsProcessing(false);
+        return;
+      }
+
+      const sessionData = {
+        classId: classData.id,
+        userId: user.id,
+        userEmail: user.email!,
+        className: classData.title,
+        hostName: classData.hostName,
+        amount: classData.price * 100, // Convert to kobo
+        currency: 'NGN'
+      };
+
+      const result = await createCheckoutSession(sessionData);
+      
+      if (result.success && result.data) {
+        // In production, redirect to Stripe checkout
+        // window.location.href = result.data.url;
+        
+        // For demo, simulate successful payment
+        setTimeout(() => {
+          setIsProcessing(false);
+          setCurrentStep(3);
+          setOrderComplete(true);
+        }, 2000);
+      } else {
+        setErrors({ general: result.error || 'Payment failed. Please try again.' });
+        setIsProcessing(false);
+        setCurrentStep(1);
+      }
+    } catch (error) {
+      console.error('Payment processing error:', error);
+      setErrors({ general: 'An unexpected error occurred. Please try again.' });
+      setIsProcessing(false);
+      setCurrentStep(1);
+    }
+  };
+
+  const handleAddToCalendar = () => {
+    // Generate calendar event
+    const startDate = new Date('2024-12-20T19:00:00');
+    const endDate = new Date(startDate.getTime() + 90 * 60000); // 90 minutes later
+    
+    const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(classData.title)}&dates=${startDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z/${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z&details=${encodeURIComponent(`Join your KoboClass: ${classData.description}`)}&location=${encodeURIComponent('KoboClass Live Stream')}`;
+    
+    window.open(calendarUrl, '_blank');
+  };
+
+  const handleShareClass = async () => {
+    const shareData = {
+      title: classData.title,
+      text: `I just booked "${classData.title}" on KoboClass! Join me for this amazing learning experience.`,
+      url: window.location.origin + `/class/${classData.id}`
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.log('Error sharing:', err);
+      }
+    } else {
+      // Fallback - copy to clipboard
+      navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
+      alert('Link copied to clipboard!');
+    }
+  };
+
+  const renderStep1 = () => (
+    <div className="space-y-8">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-charcoal-black mb-2">Choose Payment Method</h2>
+        <p className="text-warm-gray">Select how you'd like to pay for your class</p>
+      </div>
+
+      <div className="space-y-4">
+        {paymentMethods.map((method) => (
+          <div
+            key={method.id}
+            onClick={() => handlePaymentSelect(method.id)}
+            className={cn(
+              "relative p-6 border-2 rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-lg",
+              selectedPayment === method.id
+                ? "border-deep-orange bg-deep-orange/5 shadow-lg"
+                : "border-light-sand bg-creamy-white hover:border-deep-orange/50"
+            )}
+          >
+            {method.popular && (
+              <div className="absolute -top-3 left-6 bg-golden-yellow text-charcoal-black px-3 py-1 rounded-full text-sm font-medium">
+                Most Popular
+              </div>
+            )}
+            
+            <div className="flex items-center gap-4">
+              <div className={cn(
+                "w-12 h-12 rounded-xl flex items-center justify-center transition-colors",
+                selectedPayment === method.id
+                  ? "bg-deep-orange text-creamy-white"
+                  : "bg-light-sand text-deep-orange"
+              )}>
+                {method.icon}
+              </div>
+              
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-charcoal-black mb-1">
+                  {method.name}
+                </h3>
+                <p className="text-warm-gray text-sm">
+                  {method.description}
+                </p>
+              </div>
+              
+              <div className={cn(
+                "w-6 h-6 rounded-full border-2 transition-all duration-300",
+                selectedPayment === method.id
+                  ? "border-deep-orange bg-deep-orange"
+                  : "border-light-sand"
+              )}>
+                {selectedPayment === method.id && (
+                  <CheckCircle className="w-4 h-4 text-creamy-white m-0.5" />
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-light-sand rounded-2xl p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <Shield className="w-5 h-5 text-forest-green" />
+          <h3 className="font-semibold text-charcoal-black">Secure Payment</h3>
+        </div>
+        <p className="text-warm-gray text-sm">
+          Your payment is secured by Stripe with bank-level encryption. We never store your card details.
+        </p>
+      </div>
+    </div>
+  );
+
+  const renderStep2 = () => (
+    <div className="space-y-8 text-center">
+      <div className="space-y-4">
+        <div className="w-20 h-20 bg-deep-orange rounded-full flex items-center justify-center mx-auto">
+          <div className="w-8 h-8 border-4 border-creamy-white border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        
+        <h2 className="text-2xl font-bold text-charcoal-black">Processing Payment</h2>
+        <p className="text-warm-gray">
+          Please wait while we process your payment securely...
+        </p>
+      </div>
+
+      <div className="bg-light-sand rounded-2xl p-6">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <div className="w-3 h-3 bg-deep-orange rounded-full animate-bounce"></div>
+          <div className="w-3 h-3 bg-deep-orange rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+          <div className="w-3 h-3 bg-deep-orange rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+        </div>
+        <p className="text-warm-gray text-sm">
+          Do not close this window or press the back button
+        </p>
+      </div>
+    </div>
+  );
+
+  const renderStep3 = () => (
+    <div className="space-y-8 text-center">
+      <div className="space-y-4">
+        <div className="w-20 h-20 bg-forest-green rounded-full flex items-center justify-center mx-auto">
+          <CheckCircle className="w-10 h-10 text-creamy-white" />
+        </div>
+        
+        <h2 className="text-2xl font-bold text-charcoal-black">Payment Successful!</h2>
+        <p className="text-warm-gray">
+          You're all set! Your ticket has been confirmed.
+        </p>
+      </div>
+
+      <div className="bg-forest-green/10 border border-forest-green/30 rounded-2xl p-6">
+        <h3 className="font-semibold text-forest-green mb-2">What's Next?</h3>
+        <p className="text-charcoal-black text-sm">
+          You'll receive a confirmation email with your class link. Join 5 minutes before the start time.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <button
+          onClick={handleAddToCalendar}
+          className="flex items-center justify-center gap-2 bg-deep-orange text-creamy-white px-6 py-3 rounded-xl font-semibold hover:bg-brick-red transition-colors"
+        >
+          <Calendar className="w-5 h-5" />
+          Add to Calendar
+        </button>
+        
+        <button
+          onClick={handleShareClass}
+          className="flex items-center justify-center gap-2 border border-deep-orange text-deep-orange px-6 py-3 rounded-xl font-semibold hover:bg-deep-orange hover:text-creamy-white transition-colors"
+        >
+          <Share2 className="w-5 h-5" />
+          Share Class
+        </button>
+      </div>
+
+      <Link
+        to="/dashboard"
+        className="inline-flex items-center gap-2 text-deep-orange hover:text-brick-red font-medium transition-colors"
+      >
+        Go to Dashboard
+        <ArrowRight className="w-4 h-4" />
+      </Link>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-light-sand via-creamy-white to-golden-yellow/20 relative overflow-hidden">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute top-20 left-10 w-32 h-32 bg-warm-purple/30 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-40 h-40 bg-deep-orange/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute top-1/2 left-1/2 w-24 h-24 bg-golden-yellow/30 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+      </div>
+
+      {/* Header */}
+      <div className="relative z-10 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <Link 
+              to="/dashboard"
+              className="flex items-center gap-2 text-charcoal-black hover:text-deep-orange transition-colors group"
+            >
+              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-300" />
+              <span className="font-medium">Back to Dashboard</span>
+            </Link>
+            
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-deep-orange" />
+              <span className="text-sm font-medium text-warm-gray">Secure Checkout</span>
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Class Summary - Left Side */}
+            <div className="lg:col-span-1">
+              <div className="bg-creamy-white/70 backdrop-blur-sm border border-light-sand/50 rounded-3xl p-6 shadow-2xl sticky top-6">
+                <h3 className="text-lg font-bold text-charcoal-black mb-6">Class Summary</h3>
+                
+                {/* Class Info */}
+                <div className="space-y-4 mb-6">
+                  <div className="flex items-start gap-4">
+                    <img
+                      src={classData.hostImage}
+                      alt={classData.hostName}
+                      className="w-12 h-12 rounded-full object-cover border-2 border-light-sand"
+                    />
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-charcoal-black mb-1">{classData.title}</h4>
+                      <p className="text-sm text-warm-gray">with {classData.hostName}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2 text-warm-gray">
+                      <Calendar className="w-4 h-4" />
+                      <span>{classData.date}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-warm-gray">
+                      <Clock className="w-4 h-4" />
+                      <span>{classData.time} ({classData.duration})</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-warm-gray">
+                      <MapPin className="w-4 h-4" />
+                      <span>Live Online Class</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Price Breakdown */}
+                <div className="border-t border-light-sand pt-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-charcoal-black">Class Ticket</span>
+                    <span className="font-semibold">₦{classData.price.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-warm-gray">Platform Fee</span>
+                    <span className="text-warm-gray">₦0</span>
+                  </div>
+                  <hr className="border-light-sand" />
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-charcoal-black">Total</span>
+                    <span className="font-bold text-deep-orange text-xl">₦{classData.price.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* Rating & Students */}
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-light-sand">
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 text-golden-yellow fill-current" />
+                    <span className="text-sm font-medium">{classData.rating}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-warm-gray">
+                    <User className="w-4 h-4" />
+                    <span className="text-sm">{classData.studentsCount} students</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Checkout Form - Right Side */}
+            <div className="lg:col-span-2">
+              <div className="bg-creamy-white/70 backdrop-blur-sm border border-light-sand/50 rounded-3xl p-8 shadow-2xl">
+                {currentStep === 1 && renderStep1()}
+                {currentStep === 2 && renderStep2()}
+                {currentStep === 3 && renderStep3()}
+
+                {/* Action Button */}
+                {currentStep === 1 && (
+                  <div className="mt-8 pt-6 border-t border-light-sand">
+                    <button
+                      onClick={handleProceedToPayment}
+                      disabled={!selectedPayment}
+                      className="w-full gradient-orange-yellow text-on-gradient py-4 px-6 rounded-xl font-semibold text-lg hover:shadow-2xl hover:shadow-deep-orange/25 hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                    >
+                      Complete Payment
+                      <ArrowRight className="w-5 h-5" />
+                    </button>
+                    
+                    <p className="text-center text-warm-gray text-sm mt-4">
+                      By proceeding, you agree to our Terms of Service and Privacy Policy
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
+
+export default CheckoutPage;
