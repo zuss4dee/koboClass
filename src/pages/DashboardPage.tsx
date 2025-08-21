@@ -63,7 +63,7 @@ interface ClassCard {
   
   const mockClasses: ClassCard[] = [
     {
-      id: '1',
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       hostImage: 'https://images.pexels.com/photos/3184334/pexels-photo-3184334.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop&crop=face',
       hostName: 'Chioma Okeke',
       title: 'Master Professional Makeup Artistry',
@@ -78,7 +78,7 @@ interface ClassCard {
       isTrending: true
     },
     {
-      id: '2',
+      id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       hostImage: 'https://images.pexels.com/photos/3184292/pexels-photo-3184292.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop&crop=face',
       hostName: 'Ibrahim Sule',
       title: 'Build Your First Website in 2 Hours',
@@ -92,7 +92,7 @@ interface ClassCard {
       isTrending: true
     },
     {
-      id: '3',
+      id: 'b2c3d4e5-f6g7-8901-bcde-f23456789012',
       hostImage: 'https://images.pexels.com/photos/3184301/pexels-photo-3184301.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop&crop=face',
       hostName: 'Tunde Bakare',
       title: 'Music Production Masterclass',
@@ -105,7 +105,7 @@ interface ClassCard {
       studentsCount: 32
     },
     {
-      id: '4',
+      id: 'c3d4e5f6-g7h8-9012-cdef-345678901234',
       hostImage: 'https://images.pexels.com/photos/3184339/pexels-photo-3184339.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop&crop=face',
       hostName: 'Fatima Hassan',
       title: 'Start Your Online Business Today',
@@ -118,7 +118,7 @@ interface ClassCard {
       studentsCount: 67
     },
     {
-      id: '5',
+      id: 'd4e5f6g7-h8i9-0123-defg-456789012345',
       hostImage: 'https://images.pexels.com/photos/3184360/pexels-photo-3184360.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop&crop=face',
       hostName: 'Kemi Adeyemi',
       title: 'Photography for Social Media',
@@ -131,7 +131,7 @@ interface ClassCard {
       studentsCount: 89
     },
     {
-      id: '6',
+      id: 'e5f6g7h8-i9j0-1234-efgh-567890123456',
       hostImage: 'https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop&crop=face',
       hostName: 'Adebayo Kemi',
       title: 'UI/UX Design Fundamentals',

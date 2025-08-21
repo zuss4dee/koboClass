@@ -42,7 +42,7 @@ const CheckoutPage = () => {
 
   // Mock class data - in real app, fetch based on classId
   const classData = {
-    id: classId,
+    id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', // Mock UUID for demo
     title: "Master Professional Makeup Artistry",
     description: "Learn advanced makeup techniques from a certified professional makeup artist with 8+ years experience.",
     hostName: "Chioma Okeke",
