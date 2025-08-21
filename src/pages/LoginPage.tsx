@@ -33,6 +33,16 @@ const LoginPage = () => {
 
     if (!formData.emailOrPhone.trim()) {
       newErrors.emailOrPhone = 'Email or phone number is required';
+    } else {
+      // Check if it's an email format and validate it
+      if (formData.emailOrPhone.includes('@')) {
+        if (!validateEmail(formData.emailOrPhone)) {
+          newErrors.emailOrPhone = 'Please enter a valid email address';
+        }
+      } else {
+        // For now, we only support email login
+        newErrors.emailOrPhone = 'Please use your email address to login. Phone number login is not yet supported.';
+      }
     }
 
     if (!formData.password) {
@@ -59,13 +69,6 @@ const LoginPage = () => {
     setErrors({});
 
     try {
-      // Ensure we're using email for login (not phone for now)
-      const isEmail = formData.emailOrPhone.includes('@');
-      if (!isEmail) {
-        setErrors({ general: 'Please use your email address to login. Phone number login is not yet supported.' });
-        return;
-      }
-
       const { data, error } = await signIn(formData.emailOrPhone, formData.password);
       
       if (error) {
