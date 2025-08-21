@@ -43,36 +43,70 @@ Deno.serve(async (req: Request) => {
   }
 
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { 
+    return new Response(JSON.stringify({ 
+      error: 'Method not allowed' 
+    }), { 
       status: 405, 
-      headers: corsHeaders 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 
   try {
-    // Initialize Supabase client
+    // Check environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
 
+    console.log('Environment check:', {
+      hasSupabaseUrl: !!supabaseUrl,
+      hasSupabaseServiceKey: !!supabaseServiceKey,
+      hasStripeSecretKey: !!stripeSecretKey,
+      supabaseUrl: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'missing'
+    });
+
     if (!supabaseUrl || !supabaseServiceKey || !stripeSecretKey) {
-      console.error('Missing required environment variables');
+      console.error('Missing environment variables:', {
+        SUPABASE_URL: !!supabaseUrl,
+        SUPABASE_SERVICE_ROLE_KEY: !!supabaseServiceKey,
+        STRIPE_SECRET_KEY: !!stripeSecretKey
+      });
       return new Response(JSON.stringify({ 
-        error: 'Server configuration error' 
+        error: 'Server configuration error - missing environment variables' 
       }), { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     // Parse request body
-    const requestData: CreateCheckoutRequest = await req.json();
+    let requestData: CreateCheckoutRequest;
+    try {
+      requestData = await req.json();
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid request body' 
+      }), { 
+        status: 400, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const { classId, userId, userEmail, className, hostName, amount, currency } = requestData;
+
+    console.log('Request data:', {
+      classId,
+      userId,
+      userEmail,
+      className,
+      hostName,
+      amount,
+      currency
+    });
 
     // Validate required fields
     if (!classId || !userId || !userEmail || !amount) {
+      console.error('Missing required fields:', { classId, userId, userEmail, amount });
       return new Response(JSON.stringify({ 
         error: 'Missing required fields' 
       }), { 
@@ -80,6 +114,9 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+
+    // Initialize Supabase client
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Check if user already has a ticket for this class
     const { data: existingTicket, error: ticketCheckError } = await supabase
@@ -90,7 +127,18 @@ Deno.serve(async (req: Request) => {
       .eq('status', 'paid')
       .single();
 
+    if (ticketCheckError && ticketCheckError.code !== 'PGRST116') {
+      console.error('Error checking existing tickets:', ticketCheckError);
+      return new Response(JSON.stringify({ 
+        error: 'Database error while checking existing tickets' 
+      }), { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     if (existingTicket) {
+      console.log('User already has ticket for this class');
       return new Response(JSON.stringify({ 
         error: 'You already have a ticket for this class' 
       }), { 
@@ -107,7 +155,18 @@ Deno.serve(async (req: Request) => {
       .eq('status', 'approved')
       .single();
 
-    if (classError || !classData) {
+    if (classError) {
+      console.error('Error fetching class data:', classError);
+      return new Response(JSON.stringify({ 
+        error: 'Class not found or not available for booking' 
+      }), { 
+        status: 404, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!classData) {
+      console.log('Class not found or not approved');
       return new Response(JSON.stringify({ 
         error: 'Class not found or not available for booking' 
       }), { 
@@ -118,6 +177,7 @@ Deno.serve(async (req: Request) => {
 
     // Verify class is in the future
     if (new Date(classData.date_time) <= new Date()) {
+      console.log('Class has already started or ended');
       return new Response(JSON.stringify({ 
         error: 'This class has already started or ended' 
       }), { 
@@ -125,6 +185,11 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+
+    // Get origin for redirect URLs
+    const origin = req.headers.get('origin') || 'http://localhost:5173';
+    
+    console.log('Creating Stripe checkout session with origin:', origin);
 
     // Create Stripe checkout session
     const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -135,8 +200,8 @@ Deno.serve(async (req: Request) => {
       },
       body: new URLSearchParams({
         'mode': 'payment',
-        'success_url': `${req.headers.get('origin') || 'https://koboclass.com'}/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-        'cancel_url': `${req.headers.get('origin') || 'https://koboclass.com'}/class/${classId}/checkout?payment=cancelled`,
+        'success_url': `${origin}/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+        'cancel_url': `${origin}/class/${classId}/checkout?payment=cancelled`,
         'customer_email': userEmail,
         'line_items[0][price_data][currency]': currency.toLowerCase(),
         'line_items[0][price_data][product_data][name]': className,
@@ -151,11 +216,18 @@ Deno.serve(async (req: Request) => {
       }),
     });
 
+    console.log('Stripe API response status:', stripeResponse.status);
+
     if (!stripeResponse.ok) {
       const errorText = await stripeResponse.text();
-      console.error('Stripe API error:', errorText);
+      console.error('Stripe API error:', {
+        status: stripeResponse.status,
+        statusText: stripeResponse.statusText,
+        error: errorText
+      });
       return new Response(JSON.stringify({ 
-        error: 'Failed to create checkout session' 
+        error: 'Failed to create checkout session',
+        details: `Stripe API returned ${stripeResponse.status}: ${errorText}`
       }), { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -163,6 +235,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const session = await stripeResponse.json();
+    console.log('Stripe session created successfully:', session.id);
 
     return new Response(JSON.stringify({
       sessionId: session.id,
@@ -175,7 +248,8 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error('Checkout session creation error:', error);
     return new Response(JSON.stringify({ 
-      error: 'Internal server error' 
+      error: 'Internal server error',
+      details: error.message
     }), { 
       status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
