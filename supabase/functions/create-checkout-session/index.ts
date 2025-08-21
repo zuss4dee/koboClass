@@ -125,7 +125,7 @@ Deno.serve(async (req: Request) => {
       .eq('user_id', userId)
       .eq('class_id', classId)
       .eq('status', 'paid')
-      .single();
+      .maybeSingle();
 
     if (ticketCheckError && ticketCheckError.code !== 'PGRST116') {
       console.error('Error checking existing tickets:', ticketCheckError);
