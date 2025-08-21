@@ -20,6 +20,7 @@ import {
 import { cn } from '../lib/utils';
 import { createCheckoutSession } from '../api/checkout';
 import { useAuth } from '../contexts/AuthContext';
+import { AlertCircle } from 'lucide-react';
 
 interface PaymentMethod {
   id: string;
@@ -32,10 +33,12 @@ interface PaymentMethod {
 const CheckoutPage = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
+  const { user, userProfile } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPayment, setSelectedPayment] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Mock class data - in real app, fetch based on classId
   const classData = {
@@ -79,17 +82,48 @@ const CheckoutPage = () => {
     setSelectedPayment(methodId);
   };
 
-  const handleProceedToPayment = () => {
+  const handleProceedToPayment = async () => {
     if (!selectedPayment) return;
+    
+    // Check if user is authenticated
+    if (!user || !userProfile) {
+      setError('You must be logged in to purchase a class');
+      return;
+    }
+    
     setCurrentStep(2);
     setIsProcessing(true);
+    setError(null);
     
-    // Simulate payment processing
-    setTimeout(() => {
+    try {
+      // Prepare checkout session data
+      const sessionData = {
+        classId: classId!,
+        userId: user.id,
+        userEmail: user.email!,
+        className: classData.title,
+        hostName: classData.hostName,
+        amount: classData.price * 100, // Convert to kobo
+        currency: 'NGN'
+      };
+
+      // Create Stripe checkout session
+      const result = await createCheckoutSession(sessionData);
+      
+      if (result.success && result.data?.url) {
+        // Redirect to Stripe checkout
+        window.location.href = result.data.url;
+      } else {
+        setError(result.error || 'Failed to create checkout session');
+        setCurrentStep(1);
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      setError('An unexpected error occurred. Please try again.');
+      setCurrentStep(1);
+    } finally {
       setIsProcessing(false);
-      setCurrentStep(3);
-      setOrderComplete(true);
-    }, 2000);
+    }
   };
 
   const handleAddToCalendar = () => {
@@ -195,27 +229,50 @@ const CheckoutPage = () => {
 
   const renderStep2 = () => (
     <div className="space-y-8 text-center">
+      {error && (
+        <div className="bg-brick-red/10 border border-brick-red/30 rounded-lg p-4 flex items-center gap-2 mb-6">
+          <AlertCircle className="w-5 h-5 text-brick-red" />
+          <span className="text-brick-red font-medium">{error}</span>
+        </div>
+      )}
+      
       <div className="space-y-4">
         <div className="w-20 h-20 bg-deep-orange rounded-full flex items-center justify-center mx-auto">
           <div className="w-8 h-8 border-4 border-creamy-white border-t-transparent rounded-full animate-spin"></div>
         </div>
         
-        <h2 className="text-2xl font-bold text-charcoal-black">Processing Payment</h2>
+        <h2 className="text-2xl font-bold text-charcoal-black">
+          {error ? 'Payment Failed' : 'Redirecting to Stripe'}
+        </h2>
         <p className="text-warm-gray">
-          Please wait while we process your payment securely...
+          {error ? 'Please try again or contact support.' : 'You will be redirected to Stripe to complete your payment...'}
         </p>
       </div>
 
-      <div className="bg-light-sand rounded-2xl p-6">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <div className="w-3 h-3 bg-deep-orange rounded-full animate-bounce"></div>
-          <div className="w-3 h-3 bg-deep-orange rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-          <div className="w-3 h-3 bg-deep-orange rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+      {!error && (
+        <div className="bg-light-sand rounded-2xl p-6">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="w-3 h-3 bg-deep-orange rounded-full animate-bounce"></div>
+            <div className="w-3 h-3 bg-deep-orange rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+            <div className="w-3 h-3 bg-deep-orange rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+          </div>
+          <p className="text-warm-gray text-sm">
+            Do not close this window while we redirect you to Stripe
+          </p>
         </div>
-        <p className="text-warm-gray text-sm">
-          Do not close this window or press the back button
-        </p>
-      </div>
+      )}
+      
+      {error && (
+        <button
+          onClick={() => {
+            setError(null);
+            setCurrentStep(1);
+          }}
+          className="bg-deep-orange text-creamy-white px-6 py-3 rounded-xl font-semibold hover:bg-brick-red transition-colors"
+        >
+          Try Again
+        </button>
+      )}
     </div>
   );
 
@@ -371,6 +428,13 @@ const CheckoutPage = () => {
                 {/* Action Button */}
                 {currentStep === 1 && (
                   <div className="mt-8 pt-6 border-t border-light-sand">
+                    {error && (
+                      <div className="bg-brick-red/10 border border-brick-red/30 rounded-lg p-3 flex items-center gap-2 mb-4">
+                        <AlertCircle className="w-5 h-5 text-brick-red" />
+                        <span className="text-brick-red font-medium">{error}</span>
+                      </div>
+                    )}
+                    
                     <button
                       onClick={handleProceedToPayment}
                       disabled={!selectedPayment}
