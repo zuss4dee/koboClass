@@ -153,7 +153,7 @@ Deno.serve(async (req: Request) => {
       .select('id, title, status, date_time, price')
       .eq('id', classId)
       .eq('status', 'approved')
-      .single();
+      .maybeSingle();
 
     if (classError) {
       console.error('Error fetching class data:', classError);
