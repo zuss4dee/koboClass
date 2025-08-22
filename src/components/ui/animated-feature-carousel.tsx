@@ -326,7 +326,7 @@ const defaultClasses = {
   step1img2: "w-[65%] left-[35%] top-[25%]",
   step2img1: "w-[50%] left-[5%] top-[20%]",
   step2img2: "w-[40%] left-[55%] top-[45%]",
-  step3img: "w-[90%] left-[5%] top-[25%]",
+  step3img: "w-[90%] left-[5%] top-[15%]",
   step4img: "w-[90%] left-[5%] top-[25%]",
 } as const
 
