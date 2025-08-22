@@ -101,11 +101,6 @@ const Features = () => {
                   {feature.description}
                 </p>
 
-                {/* CTA Link */}
-                <div className="flex items-center gap-2 text-sm font-medium text-warm-gray group-hover:text-deep-orange transition-all duration-300">
-                  <span>Learn more</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
-                </div>
               </div>
 
               {/* Bottom accent line */}
