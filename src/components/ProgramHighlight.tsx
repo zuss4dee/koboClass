@@ -6,7 +6,7 @@ const ProgramHighlight = () => {
     alt: "KoboClass learning experience",
     step1img1: "/image 4.png",
     step1img2: "/tcn7cwlLS9Omo2Ij2J_bHg-ezgif.com-webp-to-jpg-converter (1).jpg",
-    step2img1: "https://images.pexels.com/photos/3184300/pexels-photo-3184300.jpeg?auto=compress&cs=tinysrgb&w=600",
+    step2img1: "/932b823adcacbe708a9407b58050810be2ddcee8c38d18d4e0044bf64e7cd89c.png",
     step2img2: "https://images.pexels.com/photos/3184292/pexels-photo-3184292.jpeg?auto=compress&cs=tinysrgb&w=600",
     step3img: "https://images.pexels.com/photos/3184360/pexels-photo-3184360.jpeg?auto=compress&cs=tinysrgb&w=600",
     step4img: "https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=600",
