@@ -9,7 +9,7 @@ const ProgramHighlight = () => {
     step2img1: "/932b823adcacbe708a9407b58050810be2ddcee8c38d18d4e0044bf64e7cd89c.png",
     step2img2: "/imagelive.png",
     step3img: "https://images.pexels.com/photos/3184360/pexels-photo-3184360.jpeg?auto=compress&cs=tinysrgb&w=600",
-    step4img: "https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=600",
+    step4img: "/imageport.png",
   };
 
   return (
